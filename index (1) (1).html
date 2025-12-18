@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream Pro | Kaveen Chamodya</title>
+    
+    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
+    <link href="https://unpkg.com/@videojs/themes@1.0.1/city/index.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #00f2fe;
+            --secondary-color: #4facfe;
+            --bg-dark: #080a0f;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Loading Screen */
+        #loader {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-dark);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+        .spinner {
+            width: 60px; height: 60px;
+            border: 5px solid rgba(0, 242, 254, 0.1);
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s infinite;
+            box-shadow: 0 0 20px var(--primary-color);
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .main-wrapper {
+            width: 95%;
+            max-width: 1100px;
+            display: none; 
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .player-section {
+            background: var(--card-bg);
+            backdrop-filter: blur(25px);
+            padding: 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-js {
+            width: 100%;
+            height: 480px;
+            border-radius: 12px;
+        }
+
+        .channel-container {
+            max-height: 450px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        h3 {
+            font-size: 14px;
+            color: var(--primary-color);
+            margin: 25px 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .channel-card {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 15px;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
+        }
+
+        .channel-card:hover {
+            background: rgba(0, 242, 254, 0.15);
+            border-color: var(--primary-color);
+            transform: translateY(-3px);
+        }
+
+        .channel-card.active {
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+        .footer-note {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.3);
+            padding-bottom: 20px;
+        }
+        .dev-name span { color: var(--primary-color); font-weight: 600; }
+
+        @media (max-width: 768px) { .video-js { height: 260px; } }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="loading-text" style="margin-top: 20px; color: var(--primary-color);">Initializing Web Player...</div>
+    </div>
+
+    <div class="main-wrapper" id="player-ui">
+        <div class="player-section">
+            <video id="my-video" class="video-js vjs-theme-city vjs-big-play-centered" controls preload="auto"></video>
+        </div>
+
+        <div class="channel-container" id="dynamic-content">
+            </div>
+
+        <footer class="footer-note">
+            <p>&copy; 2025 All Rights Reserved</p>
+            <p class="dev-name">Powered By <span>Kaveen Chamodya</span></p>
+        </footer>
+    </div>
+
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script>
+        var player = videojs('my-video', { fluid: true });
+        const m3uUrl = "https://raw.githubusercontent.com/abusaeeidx/Mrgify-Tv/refs/heads/main/playlist.m3u";
+
+        async function initPlayer() {
+            try {
+                const response = await fetch(m3uUrl + '?t=' + Date.now());
+                const data = await response.text();
+                const lines = data.split('\n');
+                
+                let categories = {};
+                let isFirstChannel = true;
+
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('#EXTINF')) {
+                        const groupMatch = lines[i].match(/group-title="([^"]+)"/);
+                        const categoryName = groupMatch ? groupMatch[1] : "General";
+                        
+                        // "Live Event" category skip කිරීම
+                        if (categoryName.toLowerCase() === "live event") {
+                            continue; 
+                        }
+
+                        const channelName = lines[i].split(',')[1]?.trim() || "Live TV";
+                        const channelUrl = lines[i + 1]?.trim();
+
+                        if (channelUrl && channelUrl.startsWith('http')) {
+                            if (!categories[categoryName]) categories[categoryName] = [];
+                            categories[categoryName].push({ name: channelName, url: channelUrl });
+                        }
+                    }
+                }
+
+                const container = document.getElementById('dynamic-content');
+                
+                for (let cat in categories) {
+                    const title = document.createElement('h3');
+                    title.innerText = cat;
+                    container.appendChild(title);
+
+                    const grid = document.createElement('div');
+                    grid.className = 'channel-grid';
+
+                    categories[cat].forEach(ch => {
+                        const card = document.createElement('div');
+                        card.className = 'channel-card';
+                        card.innerText = ch.name;
+                        card.onclick = function() {
+                            document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active'));
+                            this.classList.add('active');
+                            player.src({ src: ch.url, type: 'application/x-mpegURL' });
+                            player.play();
+                        };
+
+                        if (isFirstChannel) {
+                            card.classList.add('active');
+                            player.src({ src: ch.url, type: 'application/x-mpegURL' });
+                            isFirstChannel = false;
+                        }
+                        grid.appendChild(card);
+                    });
+                    container.appendChild(grid);
+                }
+
+                // Loader එක ඉවත් කර UI පෙන්වීම
+                setTimeout(() => {
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('player-ui').style.display = 'flex';
+                }, 1000);
+
+            } catch (err) {
+                console.error("Initialization Error:", err);
+            }
+        }
+
+        window.onload = initPlayer;
+    </script>
+</body>
+</html>
